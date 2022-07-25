@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Embroidery Page</title>
+		<link rel="stylesheet" href="style.css" type="text/css">
+	</head>
+	<body>
+		
+		<h1 id="PageTitle">Embroidery Pattern Designer</h1>
+
+		<div id="ControlsDiv">
+			<input id="ZoomSlider" type="range" min="1" max="10" step="1" value="1">Zoom</input>
+			<input id="ModeSwitch", type="checkbox" value="true">Add Mode</input>
+			<span>_______________________________________________</span>
+			
+			<!--temporarily hiding each of these-->
+			<span hidden="true">Select EXP File</span>
+			<input id="EXPFileSelector" type="file" hidden="true"></input>
+			<button id="LoadEXPButton" hidden="true">Load EXP File</button>
+			
+			<button id="RandColor">Randomize Colors</button> 		
+			<button id="UndoButton">Undo</button>
+			<button id="RedoButton">Redo</button>
+			<a href="help.html">help</a>
+
+		</div>
+
+		<div id="CanvasDiv">
+			<canvas id="MainCanvas", height="1400px", width="2100px"></canvas>
+		</div>
+
+		<div id="StitchInfoDiv">
+			<button id="AddLayerButton">Add Layer</button>
+			<input id="StitchInfoSwitch", type="checkbox" value="true">Show Stitch Info</input>
+			<button id="DeleteStitchButton">Delete Stitch</button>
+ 
+			<!--gets populated list of pattern layers/stitches-->
+			<table id="LayerTable"></table>
+
+			<table id="StitchInfoTable">
+				<tr>
+					<th>Layer Number: </th>
+					<td id="StitchLayerIndexCell"></td>
+				</tr>
+				<tr>
+					<th>Stitch Number: </th>
+					<td id="StitchIndexCell"></td>
+				</tr>
+				<tr>
+					<th>X Coordinate: </th>
+					<td id="StitchXCoordCell"></td>
+				</tr>
+				<tr>
+					<th>Y Coordinate: </th>
+					<td id="StitchYCoordCell"></td>
+				</tr>
+				<tr>
+					<th>Color: </th>
+					<td id="StitchColorCell"></td>
+				</tr>
+			</table>
+		</div>
+
+		<!--javascript file-->
+		<script src="index.js"></script>
+	</body>
+</html>

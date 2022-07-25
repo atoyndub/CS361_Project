@@ -1,0 +1,29 @@
+#CondrolsDiv
+{
+	width: 1500px;
+	float: left;
+}
+
+#CanvasDiv
+{
+	overflow-y: scroll;
+	overflow-x: scroll;
+	min-height: 1000px;
+	min-width: 1500px;
+	max-height: 1000px;
+	max-width: 1500px;
+	border-width: 2px;
+	border-style: solid;
+	float: left;
+}
+
+#StitchInfoDiv
+{
+	width: 30%;
+	float: right;
+}
+
+#TipsList
+{
+	list-style-type: square;
+}
