@@ -1,4 +1,4 @@
-SETUP FOR WINDOWS ENVIRONMENT
+## SETUP FOR WINDOWS ENVIRONMENT
 1) navigate to the directory
 2) install node if not already installed???
 3) install express via "npm install express"
@@ -7,3 +7,6 @@ SETUP FOR WINDOWS ENVIRONMENT
 6) run "npm install zeromq@5"
 7) run "npm install body-parser"
 8) run the server js file via "node server_file_name.js"
+
+## CREDITS
+RGBRandomizer.py microservice developed by Christopher Felt
