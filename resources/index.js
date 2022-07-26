@@ -683,14 +683,14 @@ function layerTableClickListener(evnt)
 		++rowIndex;
 	}			
 
-	for (let i = 0; i < selected.length; ++i)
-	{
-		if (rowIndex == selected[i].layerIndex)
-			return; //clicked on a layer which is already selected
-	}
-
 	deselectAll();
-	selectLastStitchOfLayer(rowIndex);
+	if (drawMode == true)
+		selectLastStitchOfLayer(rowIndex); //select the last stitch in the layer
+	else //drawMode == false
+	{
+		for (let i = p.layers[rowIndex].stitches.length - 1; i >= 0; --i) //select all the stitches in the layer
+			selectSingleStitch(rowIndex, i);
+	}
 	updatePage();	
 }
 
@@ -725,12 +725,16 @@ document.getElementById("ModeSwitch").addEventListener("change", function(evnt)
 	drawMode = modeSwitch.checked;
 	if (drawMode == true)
 	{
-		deselectAll();
+		let layerIndex = -1;
 		if (selected.length > 0)
-			selectLastStitchOfLayer(selected[selected.length - 1].layerIndex); //select the last stitch of the last selected layer
+			layerIndex = selected[selected.length - 1].layerIndex; //last layer of those currently selected
 		else if (p.layers.length > 0)
-			selectLastStitchOfLayer(p.layers.length - 1); //select the last stitch of the last layer
-		//else no layers exist in the pattern
+			layerIndex = p.layers.length - 1; //last layer in the pattern
+		if (layerIndex != -1)
+		{
+			deselectAll();
+			selectLastStitchOfLayer(layerIndex);
+		}
 	}
 	updatePage();
 });
@@ -788,7 +792,8 @@ document.getElementById("ZoomSlider").addEventListener("input", function(evnt) /
 });
 
 
-//listener for button click on the main canvas; 
+//listener for button click on the main canvas;
+//note: mousedown happens after the down click, mouse click happens after mouse down and mouse up over the same element?
 document.getElementById("MainCanvas").addEventListener("click", function(evnt)
 {
 	//gets coordinates of the mouse event
@@ -839,6 +844,7 @@ document.getElementById("MainCanvas").addEventListener("click", function(evnt)
 
 
 //listener for mousedown on the main canvas
+//note: mousedown happens after the down click, mouse click happens after mouse down and mouse up over the same element?
 document.getElementById("MainCanvas").addEventListener("mousedown", function(evnt)
 {
 	//gets coordinates of the mouse event
@@ -857,21 +863,11 @@ document.getElementById("MainCanvas").addEventListener("mousedown", function(evn
 			if (returnVal[0] == 0) //StitchPoint
 			{
 				saveToPatternChangeHx(); //save previous state of the pattern
-
-				//NOTE: THERE IS SOME INTERACTION BETWEEN THIS CODE AND THE ON CLICK LISTENER THAT I'M NOT UNDERSTANDING
-				//SO I NEED TO DO MORE WORK ON THIS TO GET THE BEHAVIOR AS I WANT IT
-
-				/*
-				if (selected.length == 0) //no current selection
-					selectSingleStitch(returnVal[2], returnVal[1]);
-				else if (p.layers[returnVal[2]].stitches[returnVal[1]].selected == false) //the current selection is not what is being clicked
+				if (p.layers[returnVal[2]].stitches[returnVal[1]].selected == false) //the current selection, if any, is not what is being clicked
 				{
-					console.log("got here!"); //testing
 					deselectAll();
 					selectSingleStitch(returnVal[2], returnVal[1]);
 				}
-				*/
-
 				lastHeldX = mouseX;
 				lastHeldY = mouseY;
 				document.body.style.cursor = "grabbing";
