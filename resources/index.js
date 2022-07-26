@@ -14,19 +14,27 @@ let zc = new ZoomControl();
 let drawMode = true; //boolean
 let showStitchInfo = false; //boolean
 
-let focusedLayer = 0; //index number
-let focusedStitchPoint = 0; //index number
-let stitchPointHeld = false; //boolean
+let selected = [];
+selectSingleLayer(0); //assumed that the pattern is starting with at least one layer
+
+let lastHeldX = -1;
+let lastHeldY = -1;
 
 let showWarnings = true; //boolean
 
 let pointRadius = 8;
 let lineDetectTolerance = 3;
 
-let selectionSquare = {exists:false, topLeft:{x:-1,y:-1}, bottomRight:{x:-1,y:-1}}; //stores info about any selection square drawn by user
+let selectionSquare = //stores info about any selection square drawn by user
+{
+	exists:false,
+	origin: {x: -1, y: -1},
+	topLeft: {x: -1, y: -1},
+	bottomRight: {x: -1, y: -1}
+};
+
 
 //***FUNCTION DEFINITIONS***
-
 
 function ZoomControl()
 {
@@ -63,10 +71,20 @@ ZoomControl.prototype.zoomOut = function()
 };
 
 
-function Stitch(x, y)
+function SelectedLayer(layerIndex, stitchIndices)
+{
+	this.layerIndex = layerIndex;
+	this.stitchIndices = [];
+	for (let i = 0; i < stitchIndices.length; ++i)
+		this.stitchIndices.push(stitchIndices[i]);
+}
+
+
+function Stitch(x, y, selected)
 {
 	this.x = x;
 	this.y = y;
+	this.selected = selected;
 	return this;	
 };
 
@@ -76,7 +94,6 @@ function Layer(layerToCopy)
 	this.stitches = [];
 	if (layerToCopy === null)
 	{
-		this.stitches.push(new Stitch(750, 500));
 		this.r = 50;
 		this.g = 90;
 		this.b = 60;
@@ -84,7 +101,7 @@ function Layer(layerToCopy)
 	else
 	{
 		for(i = 0; i < layerToCopy.stitches.length; ++i)
-			this.stitches.push(new Stitch(layerToCopy.stitches[i].x, layerToCopy.stitches[i].y));
+			this.stitches.push(new Stitch(layerToCopy.stitches[i].x, layerToCopy.stitches[i].y, layerToCopy.stitches[i].selected));
 		this.r = layerToCopy.r;
 		this.g = layerToCopy.g;
 		this.b = layerToCopy.b;	
@@ -106,6 +123,76 @@ Pattern.prototype.pDeepCopy = function(otherPattern)
 		this.layers.pop();
 	for	(let i = 0; i < otherPattern.layers.length; ++i)
 		this.layers.push(new Layer(otherPattern.layers[i]));
+}
+
+
+function deselectAll()
+{
+	while (selected.length > 0)
+		selected.pop();
+
+	//I'm doing a full sweep instead of targeting based on selected,
+	//because I don't know if the pattern has been modified (e.g. some stitches have been deleted)
+	//and selected could be out of date
+	for (let i = 0; i < p.layers.length; ++i)
+	{
+		let currentLayer = p.layers[i];
+		for (let j = 0; j < p.layers[i].stitches.length; ++j)
+			currentLayer.stitches[j].selected = false;
+	}
+}
+
+
+//ensures layerIndex is represented in selected
+//assumes layerIndex is in range
+//maintains ordering of layerIndices
+//returns the index of selected which represents the selected layer
+function selectSingleLayer(layerIndex)
+{
+	for (let i = 0; i < selected.length; ++i)
+	{
+		if (layerIndex < selected[i].layerIndex)
+		{
+			selected.splice(i, 0, new SelectedLayer(layerIndex, []));
+			return i;
+		}
+		else if (layerIndex == selected[i].layerIndex)
+			return i;
+	}
+	selected.push(new SelectedLayer(layerIndex, []));
+	return selected.length - 1;
+}
+
+//assumes both layerIndex and stitchIndex are in range
+//marks the stitch as selected if not already so
+function selectSingleStitch(layerIndex, stitchIndex)
+{
+	p.layers[layerIndex].stitches[stitchIndex].selected = true;
+	let i = selectSingleLayer(layerIndex); //ensure the layer is selected
+	for (let j = 0; j < selected[i].stitchIndices.length; ++j)
+	{
+		if (stitchIndex < selected[i].stitchIndices[j])
+		{
+			selected[i].stitchIndices.splice(j, 0, stitchIndex);
+			return;
+		}
+		else if (stitchIndex == selected[i].stitchIndices[j])
+			return; //stitch already selected
+	}
+	selected[i].stitchIndices.push(stitchIndex);
+}
+
+
+//selects the last stitch of the layer if the layer contains any stitches,
+//otherwise just ensures that the layer is selected
+//assumes layerIndex is in range
+function selectLastStitchOfLayer(layerIndex)
+{
+	let stitchIndex = p.layers[layerIndex].stitches.length - 1;
+	if (stitchIndex >= 0)
+		selectSingleStitch(layerIndex, stitchIndex);
+	else
+		selectSingleLayer(layerIndex);
 }
 
 
@@ -158,17 +245,18 @@ function drawPatternToCanvas(canvasElement, pattern)
 {
 	clearCanvas(canvasElement);
 
-	for(let j = 0; j < pattern.layers.length; ++j)
+	for (let j = 0; j < pattern.layers.length; ++j)
 	{
 		let currentLayer = pattern.layers[j];
+		if (currentLayer.stitches.length == 0)
+			continue;
 		let sp1 = currentLayer.stitches[0];
-		drawStitchPoint(canvasElement, sp1.x, sp1.y, focusedLayer == j && focusedStitchPoint == 0, currentLayer.r, currentLayer.g, currentLayer.b); //draw the first point
-		
+		drawStitchPoint(canvasElement, sp1.x, sp1.y, sp1.selected, currentLayer.r, currentLayer.g, currentLayer.b); //draw the first point
 		for (let i = 1; i < currentLayer.stitches.length; ++i)
 		{
 			let sp2 = currentLayer.stitches[i];
-			drawStitchLine(canvasElement, sp1.x, sp1.y, sp2.x, sp2.y, focusedLayer == j && focusedStitchPoint == i, currentLayer.r, currentLayer.g, currentLayer.b); //draw stitch line
-			drawStitchPoint(canvasElement, sp2.x, sp2.y, focusedLayer == j && focusedStitchPoint == i, currentLayer.r, currentLayer.g, currentLayer.b); //draw next stitch point
+			drawStitchLine(canvasElement, sp1.x, sp1.y, sp2.x, sp2.y, sp2.selected, currentLayer.r, currentLayer.g, currentLayer.b); //draw stitch line
+			drawStitchPoint(canvasElement, sp2.x, sp2.y, sp2.selected, currentLayer.r, currentLayer.g, currentLayer.b); //draw next stitch point
 			sp1 = sp2;
 		}
 	}
@@ -179,46 +267,19 @@ function drawSelectionSquare(canvasElement)
 {
 	if (selectionSquare.exists == false)
 		return;
-	let maxSegLength = 500;
-	let horizontal = selectionSquare.bottomRight.x - selectionSquare.topLeft.x;
-	let vertical = selectionSquare.topLeft.y - selectionSquare.bottomRight.y;
-	if (horizontal < maxSegLength)
-	{
-		if (vertical < maxSegLength)
-		{
-			drawSelectionSquareSegment(canvasElement, selectionSquare.topLeft.x, selectionSquare.topLeft.y, horizontal, 0); //top horizontal
-			drawSelectionSquareSegment(canvasElement, selectionSquare.topLeft.x, selectionSquare.bottomRight.y, horizontal, 0); //bottom horizontal
-			drawSelectionSquareSegment(canvasElement, selectionSquare.topLeft.x, selectionSquare.bottomRight.y, vertical, 0); //left vertical
-			drawSelectionSquareSegment(canvasElement, selectionSquare.bottomRight.x, selectionSquare.bottomRight.y, vertical, 0); //right vertical
-		}
-	}
-}
+	
+	let x = selectionSquare.topLeft.x * zc.scaleFactor;
+	let y = selectionSquare.topLeft.y * zc.scaleFactor;	
+	let width = (selectionSquare.bottomRight.x * zc.scaleFactor) - x;
+	let height = (selectionSquare.bottomRight.y * zc.scaleFactor) - y;
 
-
-function drawSelectionSquareSegment(canvasElement, x1, y1, segLength, direction)
-{
 	let context = canvasElement.getContext('2d');
-	x1 *= zc.scaleFactor;
-	y1 *= zc.scaleFactor;
-	let x2;
-	let y2;
-	if (direction == 0) //horizontal line
-	{
-		x2 = (x1 + segLength) * zc.scaleFactor;
-		y2 = y1;
-	}
-	else //direction == 1 //vertical line
-	{
-		x2 = x1;
-		y2 = (y1 + segLength) * zc.scaleFactor;
-	}
-
 	context.beginPath();
-	context.moveTo(x1, y1);
+	context.setLineDash([5, 15]);
 	context.lineWidth = 1;
-	context.lineTo(x2, y2); //stitch line
-	context.strokeStyle = "rgb(0, 0, 0)"; //black	
-	context.stroke();
+	context.strokeStyle = "rgb(0, 0, 0)"; //black
+	context.rect(x, y, width, height);
+	context.stroke()
 }
 
 
@@ -231,8 +292,18 @@ function populateLayerTable()
 		layerTable.removeChild(row);
 		row = layerTable.lastElementChild;
 	}
+
+	let j = 0;
 	for (let i = 0; i < p.layers.length; ++i) //populate all elements in the layer table
 	{
+		//identify whether this layer is selected
+		let layerSelected = false;
+		if (j < selected.length && selected[j].layerIndex == i)
+		{
+			layerSelected = true;
+			++j;
+		}
+
 		row = document.createElement("tr");
 		layerTable.appendChild(row);
 		row.style.cursor = "pointer";
@@ -245,8 +316,8 @@ function populateLayerTable()
 			layerTableClickListener(evnt);
 		});
 
-		//display a color picker for the focused layer
-		if (i == focusedLayer)
+		//display a color picker for this selected layer
+		if (layerSelected)
 		{
 			row.style.border = "solid";
 			
@@ -257,7 +328,7 @@ function populateLayerTable()
 			colorPicker.style.cursor = "pointer";
 			col.appendChild(colorPicker);
 
-			let lyer = p.layers[focusedLayer];
+			let lyer = p.layers[i];
 			let strR = lyer.r.toString(16);
 			if (strR.length < 2)
 				strR = "0" + strR; 
@@ -274,7 +345,7 @@ function populateLayerTable()
 				layerColorPickerChangeListener(evnt);
 			});
 		}
-	}	
+	}
 }
 
 
@@ -282,11 +353,49 @@ function updateStitchInfoDisplay()
 {
 	if (showStitchInfo == true)
 	{
-		document.getElementById("StitchLayerIndexCell").innerHTML = focusedLayer;
-		document.getElementById("StitchIndexCell").innerHTML = focusedStitchPoint;
-		document.getElementById("StitchXCoordCell").innerHTML = p.layers[focusedLayer].stitches[focusedStitchPoint].x;
-		document.getElementById("StitchYCoordCell").innerHTML = p.layers[focusedLayer].stitches[focusedStitchPoint].y;
-		document.getElementById("StitchColorCell").innerHTML = "rgb(" + p.layers[focusedLayer].r + ", " + p.layers[focusedLayer].g + ", " + p.layers[focusedLayer].b + ")";
+		if (selected.length == 0)
+		{
+			document.getElementById("StitchLayerIndexCell").innerHTML = "(no layer(s) selected)";
+			document.getElementById("StitchIndexCell").innerHTML = "(no layer(s) selected)";
+			document.getElementById("StitchXCoordCell").innerHTML = "(no layer(s) selected)";
+			document.getElementById("StitchYCoordCell").innerHTML = "(no layer(s) selected)";
+			document.getElementById("StitchColorCell").innerHTML = "(no layer(s) selected)";			
+		}
+		else if (selected.length > 1)
+		{
+			document.getElementById("StitchLayerIndexCell").innerHTML = "(multiple layers selected)";
+			document.getElementById("StitchIndexCell").innerHTML = "(multiple layers selected)";
+			document.getElementById("StitchXCoordCell").innerHTML = "(multiple layers selected)";
+			document.getElementById("StitchYCoordCell").innerHTML = "(multiple layers selected)";
+			document.getElementById("StitchColorCell").innerHTML = "(multiple layers selected)";	
+		}
+		else //selected.length == 1
+		{
+			if (selected[0].stitchIndices.length > 1)
+			{
+				document.getElementById("StitchLayerIndexCell").innerHTML = "(multiple stitches selected)";
+				document.getElementById("StitchIndexCell").innerHTML = "(multiple stitches selected)";
+				document.getElementById("StitchXCoordCell").innerHTML = "(multiple stitches selected)";
+				document.getElementById("StitchYCoordCell").innerHTML = "(multiple stitches selected)";
+				document.getElementById("StitchColorCell").innerHTML = "(multiple stitches selected)";					
+			}
+			else if (selected[0].stitchIndices.length == 0)
+			{
+				document.getElementById("StitchLayerIndexCell").innerHTML = "(no stitch(es) selected)";
+				document.getElementById("StitchIndexCell").innerHTML = "(no stitch(es) selected)";
+				document.getElementById("StitchXCoordCell").innerHTML = "(no stitch(es) selected)";
+				document.getElementById("StitchYCoordCell").innerHTML = "(no stitch(es) selected)";
+				document.getElementById("StitchColorCell").innerHTML = "(no stitch(es) selected)";
+			}
+			else //(selected[0].stitchIndices.length == 1)
+			{
+				document.getElementById("StitchLayerIndexCell").innerHTML = selected[0].layerIndex;
+				document.getElementById("StitchIndexCell").innerHTML = selected[0].stitchIndices[0];
+				document.getElementById("StitchXCoordCell").innerHTML = p.layers[selected[0].layerIndex].stitches[selected[0].stitchIndices[0]].x;
+				document.getElementById("StitchYCoordCell").innerHTML = p.layers[selected[0].layerIndex].stitches[selected[0].stitchIndices[0]].y;
+				document.getElementById("StitchColorCell").innerHTML = "rgb(" + p.layers[selected[0].layerIndex].r + ", " + p.layers[selected[0].layerIndex].g + ", " + p.layers[selected[0].layerIndex].b + ")";
+			}
+		}
 		document.getElementById("StitchInfoTable").hidden = false;
 	}
 	else
@@ -395,8 +504,11 @@ function cursorOnStitchLine(mouseX, mouseY)
 	for (let j = 0; j < p.layers.length; ++j)
 	{
 		let currentLayer = p.layers[j];
-		let x2 = currentLayer.stitches[0].x; //assumes each layer contains at least one StitchPoint
-		let y2 = currentLayer.stitches[0].y; //assumes each layer contains at least one StitchPoint
+
+		if (currentLayer.stitches.length == 0)
+			continue;
+		let x2 = currentLayer.stitches[0].x;
+		let y2 = currentLayer.stitches[0].y;
 		for (let i = 1; i < currentLayer.stitches.length; ++i)
 		{
 			let x1 = x2;
@@ -426,29 +538,63 @@ function cursorOnStitchLine(mouseX, mouseY)
 }
 
 
-function deleteSelectedStitch()
+function deleteSelectedInPattern()
 {
-	//NOTE: I PURPOSEFULLY DO NOT SHORTEN p.layers[focusedLayer] ANYWHERE HERE BECAUSE saveToPatternChangeHx() CHANGES P
-	//THIS SHOULD EVENTUALLY BE REFACTORED SO THAT saveToPatternChangeHx() CAN'T CAUSE HIDDEN ISSUES LIKE THIS
-	if (p.layers[focusedLayer].stitches.length == 1)
+	if (selected.length == 0) //no selection
+		return;
+	let i;
+	if (showWarnings == true)
 	{
-		if (showWarnings == true)
-			showWarnings = confirm("You cannot delete the only stitch point in a pattern layer. Try deleting the pattern instead.\n\nContinue receiving warning messages?");
-	}
-	else
-	{
-		if (showWarnings == true && confirm("You are about to delete the selected stitch. Do you wish to proceed?") == false)
+		let deletingLayer = false;
+		for (i = 0; i < selected.length; ++i)
+		{
+			let currentLayer = p.layers[selected[i].layerIndex];
+			if (selected[i].stitchIndices.length == currentLayer.stitches.length)
+			{
+				deletingLayer = true;
+				break;
+			}
+		}
+		let warningMessage;
+		if (deletingLayer == true)
+			warningMessage = "You are about to delete every stitch in one or more layers. The entire layer(s) will be deleted, do you wish to proceed?";
+		else //deletingLayer == false
+		warningMessage = "You are about to delete the selected stitch(es). Do you wish to proceed?";
+		if (confirm(warningMessage) == false)
 			return;
-
-		saveToPatternChangeHx(); //save previous state of the pattern
-		p.layers[focusedLayer].stitches.splice(focusedStitchPoint, 1); //removed the focused stitch point
-		if (focusedStitchPoint == p.layers[focusedLayer].stitches.length)
-			--focusedStitchPoint;
-		updatePage();
-
-		if (showWarnings == true)
-			showWarnings = confirm("Continue receiving warning messages?");
 	}
+
+	let lastSelectedLayer = -1;
+	if (drawMode == true)
+		lastSelectedLayer = selected[selected.length - 1].layerIndex;
+
+	saveToPatternChangeHx(); //save previous state of the pattern
+
+	for (i = selected.length - 1; i >= 0; --i) //backward iteration because splicing could otherwise cause issues
+	{
+		let currentLayer = p.layers[selected[i].layerIndex];
+		if (currentLayer.stitches.length == selected[i].stitchIndices.length) //every stitch in the layer is selected
+			p.layers.splice(selected[i].layerIndex, 1);
+		else //only some stitch(es) in the layer, but not all, are being deleted
+		{
+			for (let j = selected[i].stitchIndices.length - 1; j >= 0; --j) //backward iteration because splicing could otherwise cause issues
+				currentLayer.stitches.splice(selected[i].stitchIndices[j], 1);	
+		}	
+	}
+	
+	deselectAll(); //empty selected
+	if (lastSelectedLayer != -1) //in draw mode, find a new terminal selection if any is available
+	{
+		while (lastSelectedLayer >= p.layers.length)
+			--lastSelectedLayer;
+		if (lastSelectedLayer >= 0) //one or more layers left
+			selectLastStitchOfLayer(lastSelectedLayer);
+	}
+	
+	updatePage();
+
+	if (showWarnings == true)
+		showWarnings = confirm("Continue receiving warning messages?");
 }
 
 
@@ -456,8 +602,8 @@ function addNewLayer()
 {
 	saveToPatternChangeHx();
 	p.layers.push(new Layer(null));
-	focusedLayer = p.layers.length - 1;
-	focusedStitchPoint = p.layers[focusedLayer].stitches.length - 1;
+	deselectAll();
+	selectLastStitchOfLayer(p.layers.length - 1);
 	updatePage();
 }
 
@@ -502,9 +648,8 @@ function revertBack()
 	--patternIndex;
 	p = patternStateHx[patternIndex];
 
-	focusedLayer = p.layers.length - 1;
-	focusedStitchPoint = p.layers[focusedLayer].stitches.length - 1;
-	
+	deselectAll();
+	selectLastStitchOfLayer(p.layers.length - 1);
 	updatePage();
 	return true;
 }
@@ -517,9 +662,8 @@ function revertForward()
 	++patternIndex;
 	p = patternStateHx[patternIndex];
 
-	focusedLayer = p.layers.length - 1;
-	focusedStitchPoint = p.layers[focusedLayer].stitches.length - 1;
-	
+	deselectAll();
+	selectLastStitchOfLayer(p.layers.length - 1);
 	updatePage();
 	return true;
 }
@@ -538,12 +682,16 @@ function layerTableClickListener(evnt)
 		currentRow = currentRow.previousElementSibling;
 		++rowIndex;
 	}			
-	if (rowIndex != focusedLayer)
+
+	for (let i = 0; i < selected.length; ++i)
 	{
-		focusedLayer = rowIndex;
-		focusedStitchPoint = p.layers[focusedLayer].stitches.length - 1;
-		updatePage();
-	}	
+		if (rowIndex == selected[i].layerIndex)
+			return; //clicked on a layer which is already selected
+	}
+
+	deselectAll();
+	selectLastStitchOfLayer(rowIndex);
+	updatePage();	
 }
 
 
@@ -552,7 +700,16 @@ function layerColorPickerChangeListener(evnt)
 {	
 	//adapted from https://stackoverflow.com/questions/58184508/html5-input-type-color-read-single-rgb-values
 	let colorInput = evnt.target;
-	let layer = p.layers[focusedLayer];
+
+	let rowIndex = 0;
+	let currentRow = colorInput.parentElement.parentElement; //changed element is <input>, parent expected to be <td>, parent of parent expected to be <tr>
+	while (currentRow.previousElementSibling)
+	{
+		currentRow = currentRow.previousElementSibling;
+		++rowIndex;
+	}	
+	let layer = p.layers[rowIndex];
+	
 	let colorStr = colorInput.value;
 	layer.r = parseInt(colorStr.substr(1,2), 16);
 	layer.g = parseInt(colorStr.substr(3,2), 16);
@@ -567,7 +724,14 @@ document.getElementById("ModeSwitch").addEventListener("change", function(evnt)
 	let modeSwitch = document.getElementById("ModeSwitch");
 	drawMode = modeSwitch.checked;
 	if (drawMode == true)
-		focusedStitchPoint = p.layers[focusedLayer].stitches.length - 1;
+	{
+		deselectAll();
+		if (selected.length > 0)
+			selectLastStitchOfLayer(selected[selected.length - 1].layerIndex); //select the last stitch of the last selected layer
+		else if (p.layers.length > 0)
+			selectLastStitchOfLayer(p.layers.length - 1); //select the last stitch of the last layer
+		//else no layers exist in the pattern
+	}
 	updatePage();
 });
 
@@ -637,9 +801,24 @@ document.getElementById("MainCanvas").addEventListener("click", function(evnt)
 
 	if (drawMode == true)
 	{
-		saveToPatternChangeHx(); //save previous state of the pattern
-		p.layers[focusedLayer].stitches.push(new Stitch(mouseX / zc.scaleFactor, mouseY / zc.scaleFactor));
-		focusedStitchPoint = p.layers[focusedLayer].stitches.length - 1;
+		if (selected.length > 1)
+		{
+			console.log("error: attempted to add stitch with multiple layers selected");
+			return;
+		}
+		
+		saveToPatternChangeHx();
+		let layerIndex;
+		if (selected.length == 0) //assuming this is because all layers have been deleted
+		{
+			p.layers.push(new Layer(null));
+			layerIndex = 0;
+		}
+		else
+			layerIndex = selected[0].layerIndex;
+		p.layers[layerIndex].stitches.push(new Stitch(mouseX / zc.scaleFactor, mouseY / zc.scaleFactor, false));
+		deselectAll();
+		selectLastStitchOfLayer(layerIndex);
 	}
 	else
 	{
@@ -648,8 +827,11 @@ document.getElementById("MainCanvas").addEventListener("click", function(evnt)
 			return;
 		else //stitchpoint or stitchline
 		{
-			focusedLayer = returnVal[2];
-			focusedStitchPoint = returnVal[1];
+			if (p.layers[returnVal[2]].stitches[returnVal[1]].selected == false) //the current selection, if any, is not what is being clicked
+			{
+				deselectAll();
+				selectSingleStitch(returnVal[2], returnVal[1]); //select the clicked StitchPoint/StitchLine
+			}
 		}
 	}
 	updatePage();
@@ -675,9 +857,23 @@ document.getElementById("MainCanvas").addEventListener("mousedown", function(evn
 			if (returnVal[0] == 0) //StitchPoint
 			{
 				saveToPatternChangeHx(); //save previous state of the pattern
-				focusedLayer = returnVal[2];
-				focusedStitchPoint = returnVal[1];
-				stitchPointHeld = true;
+
+				//NOTE: THERE IS SOME INTERACTION BETWEEN THIS CODE AND THE ON CLICK LISTENER THAT I'M NOT UNDERSTANDING
+				//SO I NEED TO DO MORE WORK ON THIS TO GET THE BEHAVIOR AS I WANT IT
+
+				/*
+				if (selected.length == 0) //no current selection
+					selectSingleStitch(returnVal[2], returnVal[1]);
+				else if (p.layers[returnVal[2]].stitches[returnVal[1]].selected == false) //the current selection is not what is being clicked
+				{
+					console.log("got here!"); //testing
+					deselectAll();
+					selectSingleStitch(returnVal[2], returnVal[1]);
+				}
+				*/
+
+				lastHeldX = mouseX;
+				lastHeldY = mouseY;
 				document.body.style.cursor = "grabbing";
 				updatePage();
 			}
@@ -685,11 +881,12 @@ document.getElementById("MainCanvas").addEventListener("mousedown", function(evn
 		else if (returnVal === null) //empty canvas space
 		{
 			selectionSquare.exists = true;
+			selectionSquare.origin.x = mouseX;
+			selectionSquare.origin.y = mouseY;
 			selectionSquare.topLeft.x = mouseX;
 			selectionSquare.topLeft.y = mouseY;
 			selectionSquare.bottomRight.x = mouseX;
 			selectionSquare.bottomRight.y = mouseY;
-			//NOT UPDATING AT THIS POINT BUT MAY DO SO LATER 
 		}
 	}
 });
@@ -708,11 +905,23 @@ document.getElementById("MainCanvas").addEventListener("mousemove", function(evn
 
 	if (drawMode == false)
 	{
-		//holding/moving a StitchPoint
-		if (stitchPointHeld == true)
+		//holding/moving stitch(es)
+		if (lastHeldX != -1)
 		{
-			p.layers[focusedLayer].stitches[focusedStitchPoint].x = mouseX;
-			p.layers[focusedLayer].stitches[focusedStitchPoint].y = mouseY;
+			let changeX = mouseX - lastHeldX;
+			let changeY = mouseY - lastHeldY;
+			for (let i = 0; i < selected.length; ++i)
+			{
+				let currentLayer = p.layers[selected[i].layerIndex];
+				for (let j = 0; j < selected[i].stitchIndices.length; ++j)
+				{
+					let currentStitch = currentLayer.stitches[selected[i].stitchIndices[j]];
+					currentStitch.x += changeX;
+					currentStitch.y += changeY;
+				}
+			}
+			lastHeldX = mouseX;
+			lastHeldY = mouseY;
 			drawPatternToCanvas(c, p);
 			return;		
 		}
@@ -720,34 +929,27 @@ document.getElementById("MainCanvas").addEventListener("mousemove", function(evn
 		//holding/resizing a selection box
 		else if (selectionSquare.exists == true)
 		{
-			if (mouseX > selectionSquare.topLeft.x)
+			if (mouseX > selectionSquare.origin.x)
 			{
-				if (mouseY > selectionSquare.bottomRight.y) //mouse is below and to the right of selectionSquare.topLeft
-				{
-					selectionSquare.bottomRight.x = mouseX;
-					selectionSquare.bottomRight.y = mouseY;
-				}
-				else //mouseY <= selectionSquare.bottomRight.y //mouse is above and to the right of selectionSquare.topLeft
-				{
-					selectionSquare.bottomRight.x = mouseX;
-					selectionSquare.topLeft.y = mouseY;					
-				}
+				selectionSquare.topLeft.x = selectionSquare.origin.x;
+				selectionSquare.bottomRight.x = mouseX;			
 			}
 			else // mouseX <= selectionSquare.topLeft.x
 			{
-				if (mouseY > selectionSquare.bottomRight.y) //mouse is below and to the left of selectionSquare.topLeft
-				{
-					selectionSquare.topLeft.x = mouseX;
-					selectionSquare.bottomRight.y = mouseY;
-				}
-				else //mouseY <= selectionSquare.bottomRight.y //mouse is above and to the left of selectionSquare.topLeft
-				{
-					selectionSquare.topLeft.x = mouseX;
-					selectionSquare.topLeft.y = mouseY;				
-				}
+				selectionSquare.topLeft.x = mouseX;
+				selectionSquare.bottomRight.x = selectionSquare.origin.x;
 			}
+			if (mouseY > selectionSquare.origin.y)
+			{
+				selectionSquare.topLeft.y = selectionSquare.origin.y;
+				selectionSquare.bottomRight.y = mouseY;
+			}
+			else
+			{
+				selectionSquare.topLeft.y = mouseY;
+				selectionSquare.bottomRight.y = selectionSquare.origin.y;
+			}	
 			updatePage();
-			//drawPatternToCanvas(c, p);
 			return;		
 		}
 
@@ -771,15 +973,27 @@ document.getElementById("MainCanvas").addEventListener("mouseup", function(evnt)
 	if (drawMode == true)
 		return;
 
-	if (stitchPointHeld == true) //holding/moving a StitchPoint
+	if (lastHeldX != -1) //holding/moving a StitchPoint
 	{
-		stitchPointHeld = false;
+		lastHeldX = -1;
+		lastHeldY = -1;
 		document.body.style.cursor = "grab";
 	}
 	else if (selectionSquare.exists == true)
 	{
+		deselectAll();
+		for (let i = 0; i < p.layers.length; ++i)
+		{
+			let currentLayer = p.layers[i];
+			for (let j = 0; j < currentLayer.stitches.length; ++j)
+			{
+				let s = currentLayer.stitches[j];
+				if (s.x >= selectionSquare.topLeft.x && s.x <= selectionSquare.bottomRight.x && s.y >= selectionSquare.topLeft.y && s.y <= selectionSquare.bottomRight.y)
+					selectSingleStitch(i, j);
+			}
+		}
 		selectionSquare.exists = false;
-		//MAYBE SHOULD REDRAW OR UPDATE HERE?
+		updatePage();
 	}
 });
 
@@ -788,14 +1002,14 @@ document.getElementById("MainCanvas").addEventListener("mouseup", function(evnt)
 document.onkeydown = function(evnt)
 {
 	if (evnt.key === "Delete")
-		deleteSelectedStitch();
+		deleteSelectedInPattern();
 };
 
 
 //listener for delete stitch button
 document.getElementById("DeleteStitchButton").addEventListener("click", function(evnt)
 {
-	deleteSelectedStitch();
+	deleteSelectedInPattern();
 });
 
 //listener for add layer button
