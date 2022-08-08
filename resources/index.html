@@ -10,21 +10,29 @@
 		<h1 id="PageTitle">Embroidery Pattern Designer</h1>
 
 		<div id="ControlsDiv">
-			<input id="ZoomSlider" type="range" step="1">Zoom</input>
-			<input id="ModeSwitch", type="checkbox" value="true">Add Mode</input>
-			<span>_______________________________________________</span>
+			<label class="LabelText">Zoom
+				<input id="ZoomSlider" type="range" step="1"></input>
+			</label>
+			<label class="LabelText">Add Mode
+				<input id="ModeSwitch", type="checkbox" value="true"></input>
+			</label>
 			
 			<!--temporarily hiding each of these-->
 			<span hidden="true">Select EXP File</span>
 			<input id="EXPFileSelector" type="file" hidden="true"></input>
 			<button id="LoadEXPButton" hidden="true">Load EXP File</button>
-			<button id="SaveEXPButton">Save to EXP</button>
+
+			<button class="TopButton" id="UndoButton">Undo</button>
+			<button class="TopButton" id="RedoButton">Redo</button>
+			<a class="LabelText" href="help.html">HELP</a>
+
+			<label class="LabelText">More Options
+				<input id="GeneralOptionsSwitch", type="checkbox" value="false"></input>
+			</label>
+
+			<button class="TopHiddenButton" id="SaveEXPButton">Save to EXP</button>
 			<a id="SaveEXPLink" download="pattern.exp" hidden="true"></a>
-			
-			<button id="RandColor">Randomize Colors</button> 		
-			<button id="UndoButton">Undo</button>
-			<button id="RedoButton">Redo</button>
-			<a href="help.html">help</a>
+			<button class="TopHiddenButton" id="RandColor">New Colors</button> 		
 
 		</div>
 
@@ -33,13 +41,15 @@
 		</div>
 
 		<div id="StitchInfoDiv">
-			<button id="AddLayerButton">Add Layer</button>
-			<button id="DeleteStitchButton">Delete Selected</button>
+			<button class="StitchInfoButton" id="AddLayerButton">Add Layer</button>
+			<button class="StitchInfoButton" id="DeleteStitchButton">Delete Selected</button>
  
 			<!--gets populated list of pattern layers/stitches-->
 			<table id="LayerTable"></table>
-
-			<input id="StitchInfoSwitch", type="checkbox" value="true">Show Stitch Info</input>
+			
+			<label class="LabelText">Show Stitch Info
+				<input id="StitchInfoSwitch", type="checkbox" value="true"></input>
+			</label>
 			<p></p>
 			<p></p>
 			<!--gets populated with info about selected stitches-->

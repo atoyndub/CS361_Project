@@ -1547,6 +1547,20 @@ document.getElementById("SaveEXPButton").addEventListener("click", function(evnt
 });
 
 
+//listener for switch to hide/view general options
+document.getElementById("GeneralOptionsSwitch").addEventListener("change", function(evnt)
+{
+	let optionsSwitch = document.getElementById("GeneralOptionsSwitch");
+	let className;
+	if (optionsSwitch.checked == true)
+		className = "TopShownButton";
+	else
+		className = "TopHiddenButton";
+	document.getElementById("SaveEXPButton").className = className;
+	document.getElementById("RandColor").className = className;
+});
+
+
 //***EXECUTABLE CODE***
 
 

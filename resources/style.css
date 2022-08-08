@@ -23,6 +23,42 @@ input[type="checkbox"]
     height: 30px;
 }
 
+.LabelText
+{
+	font-size: x-large;
+	width: 230px;
+	display: inline-block;
+}
+
+.TopButton
+{
+	font-size: x-large;
+	width: 4%;
+	display: inline-block;	
+}
+
+.TopShownButton
+{
+	font-size: x-large;
+	width: 7%;
+	display: inline-block;
+}
+
+.TopHiddenButton
+{
+	font-size: x-large;
+	width: 7%;
+	display: inline-block;
+	visibility: hidden;
+}
+
+.StitchInfoButton
+{
+	font-size: x-large;
+	width: 25%;
+	display: inline-block;	
+}
+
 #StitchInfoDiv
 {
 	width: 30%;
