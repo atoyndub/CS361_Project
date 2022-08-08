@@ -944,6 +944,8 @@ function refreshLayerTable()
 		let col = document.createElement("td");
 		row.appendChild(col);
 		col.innerHTML = "Layer " + (i + 1);
+		col.style.fontSize = "35px";
+		col.style.color = "blue";
 		col.addEventListener("click", function(evnt)
 		{
 			layerTableClickListener(evnt);

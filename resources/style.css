@@ -30,6 +30,16 @@ input[type="checkbox"]
 	display: inline-block;
 }
 
+li
+{
+	font-size:large;
+}
+
+ul
+{
+	font-size:large;
+}
+
 .TopButton
 {
 	font-size: x-large;
