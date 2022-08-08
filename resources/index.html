@@ -10,7 +10,7 @@
 		<h1 id="PageTitle">Embroidery Pattern Designer</h1>
 
 		<div id="ControlsDiv">
-			<input id="ZoomSlider" type="range" min="1" max="10" step="1" value="1">Zoom</input>
+			<input id="ZoomSlider" type="range" step="1">Zoom</input>
 			<input id="ModeSwitch", type="checkbox" value="true">Add Mode</input>
 			<span>_______________________________________________</span>
 			
@@ -18,6 +18,8 @@
 			<span hidden="true">Select EXP File</span>
 			<input id="EXPFileSelector" type="file" hidden="true"></input>
 			<button id="LoadEXPButton" hidden="true">Load EXP File</button>
+			<button id="SaveEXPButton">Save to EXP</button>
+			<a id="SaveEXPLink" download="pattern.exp" hidden="true"></a>
 			
 			<button id="RandColor">Randomize Colors</button> 		
 			<button id="UndoButton">Undo</button>
@@ -32,37 +34,21 @@
 
 		<div id="StitchInfoDiv">
 			<button id="AddLayerButton">Add Layer</button>
-			<input id="StitchInfoSwitch", type="checkbox" value="true">Show Stitch Info</input>
-			<button id="DeleteStitchButton">Delete Stitch</button>
+			<button id="DeleteStitchButton">Delete Selected</button>
  
 			<!--gets populated list of pattern layers/stitches-->
 			<table id="LayerTable"></table>
 
-			<table id="StitchInfoTable">
-				<tr>
-					<th>Layer Number: </th>
-					<td id="StitchLayerIndexCell"></td>
-				</tr>
-				<tr>
-					<th>Stitch Number: </th>
-					<td id="StitchIndexCell"></td>
-				</tr>
-				<tr>
-					<th>X Coordinate: </th>
-					<td id="StitchXCoordCell"></td>
-				</tr>
-				<tr>
-					<th>Y Coordinate: </th>
-					<td id="StitchYCoordCell"></td>
-				</tr>
-				<tr>
-					<th>Color: </th>
-					<td id="StitchColorCell"></td>
-				</tr>
-			</table>
+			<input id="StitchInfoSwitch", type="checkbox" value="true">Show Stitch Info</input>
+			<p></p>
+			<p></p>
+			<!--gets populated with info about selected stitches-->
+			<span id="StitchInfoSpan"></span>
 		</div>
 
-		<!--javascript file-->
-		<script src="index.js"></script>
+		<!--javascript files-->
+		<div id="ScriptsDiv">
+			<script src="index.js"></script>
+		</div>
 	</body>
 </html>

@@ -1,9 +1,3 @@
-#CondrolsDiv
-{
-	width: 1500px;
-	float: left;
-}
-
 #CanvasDiv
 {
 	overflow-y: scroll;
@@ -15,6 +9,18 @@
 	border-width: 2px;
 	border-style: solid;
 	float: left;
+}
+
+#CondrolsDiv
+{
+	width: 1500px;
+	float: left;
+}
+
+input[type="checkbox"]
+{
+    width: 30px;
+    height: 30px;
 }
 
 #StitchInfoDiv

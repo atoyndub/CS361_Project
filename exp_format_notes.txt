@@ -1,0 +1,23 @@
+retrieved from https://edutechwiki.unige.ch/en/Embroidery_format_EXP
+
+.exp file format syntax
+
+x7 	x6 	x5 	x4 	x3 	x2 	x1 	x0 	y7 	y6 	y5 	y4 	y3 	y2 	y1 	y0 	Description
+? 	? 	? 	? 	? 	? 	? 	? 	? 	? 	? 	? 	? 	? 	? 	? 	Stitch X, Y (unless x7-x0 == 0x80)
+1 	0 	0 	0 	0 	0 	0 	0 	1 	0 	0 	0 	0 	0 	0 	0 	0x80, 0x80: END
+1 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	1 	0 	0 	0x80, 0x04: JUMP
+1 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	1 	0x80, 0x01: COLOR_CHANGE / STOP
+1 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	0 	1 	0 	0x80, 0x02: STITCH 
+
+hex 0x80 == binary 10000000 = -128 (signed char)
+
+also, see discussion at https://github.com/inkstitch/inkstitch/issues/1315
+it appears that the 4-byte sequence 0x80 0x80 0x07 0x00 may signal END then TRIM on at least some machines
+and it appears that Erin's Bernina follows this pattern.
+
+it may be customary to pass a 0x00 0x00 after a STOP command, given that it seems like these command codes may
+expect or require something to come after them, so it is possible 0x80 0x01 0x00 0x00 gives a STOP command with
+a throwaway value (maybe the 0x00 0x00 could be anything and it wouldn't make any difference?)
+
+As an example, a pattern could start with one or more 0x80 0x04 JUMP to get to the desired starting location
+then, after performing all the stitches in a layer, use 0x80 0x80 0x07 0x00 0x80 0x01 to END, TRIM, and COLOR_CHANGE
